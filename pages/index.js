@@ -1,65 +1,166 @@
-import Head from 'next/head'
-import styles from '../styles/Home.module.css'
+import { useContext } from 'react';
+import { Context } from '../context/Cart';
 
-export default function Home() {
+import fs from 'fs'; 
+import matter from 'gray-matter';
+import Link from 'next/link';
+import styled from 'styled-components';
+import UnstyledLink from '../components/styled/UnstyledLink';
+import useCart from '../hooks/useCart';
+
+
+
+const Container = styled.div`
+  background: white;
+  padding: 1rem 2rem;
+  min-height: 200px;  // make sure that all the cards/grids are of same height
+  position: relative;
+  transition: transform 0.3s;
+
+  &:hover {
+    transform: scale(1.02)
+  }
+`;
+
+const ProductsContainer = styled.div`
+  /* background: green; */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 0.8rem;
+  margin: 0.5rem 0;
+`;
+
+const Price = styled.div`
+  position: absolute;  // this will take this (price) out of the natural flow of the document
+  bottom: 0;
+  right: 0;
+  padding: 10px;
+  font-size: 2rem;
+`;
+
+
+const renderProduct = (product, addItemToCart) => {
+
+  const handleClick = (e) => {
+    e.stopPropagation();  // will stop the event bubbling up its parents
+    // addItemToCart(product.id)
+    addItemToCart(product)
+  };
+
   return (
-    <div className={styles.container}>
-      <Head>
-        <title>Create Next App</title>
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
+    // <Container key={product.name}>
+    //   <Link href={product.slug}>
+    //     <UnstyledLink>
+    //       <h1>{product.name}</h1>
+    //       <p>{product.description}</p>
+    //       <button onClick={handleClick}>Add to cart</button>
+    //       <Price>${product.price / 100}</Price>
+    //     </UnstyledLink>
+    //   </Link>
+    // </Container>
 
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
+    <Link href={product.slug} key={product.name}>
+      <UnstyledLink>
+        <Container >
+          <h1>{product.name}</h1>
+          <p>{product.description}</p>
+          <button onClick={handleClick}>Add to cart</button>
+          <Price>${product.price / 100}</Price>
+        </Container>
+      </UnstyledLink>
+    </Link>
+    
+    )
+  };
 
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
+  
 
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
+const HomePage = (props) => {
 
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
+  // const context = useContext(Context);
+  // const { test } = useContext(Context);
+  // console.log(test)
 
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className={styles.card}
-          >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
+  // console.log(props);
+  const { cart, addItemToCart, removeItemFromCart } = useCart();  // subscribe to useCart hoot. If we make any changes say using "setCart", then it will update here
+  console.log(cart)
 
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
-        </a>
-      </footer>
-    </div>
+  return (
+    <ProductsContainer>
+      {
+        props.products.map(product => renderProduct(product, addItemToCart))
+      }
+    </ProductsContainer>
   )
+};
+
+
+/*
+const HomePage = (props) => {
+  return (
+    <ProductsContainer>
+      {
+        props.products.map(product => {
+          return (
+            <Container key={product.name}>
+              <Link href={product.slug}>
+                <a><h1>{product.name}</h1></a>
+              </Link>
+              <p>{product.description}</p>
+              <p>${product.price / 100}</p>
+            </Container>
+            )
+          };)
+      }
+    </ProductsContainer>
+  )
+};
+*/
+
+
+export const getStaticProps = async () => {
+  const directory = `${process.cwd()}/content`;
+  const filenames = fs.readdirSync(directory);
+  // console.log(filenames)
+
+  const products = filenames.map(filename => {
+
+    // (1) read the file from fs
+    const fileContent = fs.readFileSync(`${directory}/${filename}`).toString();  // turn everything to a (big) string
+    // console.log(fileContent);
+
+    // (2) pull out frontmatter => name
+    // npm install react-markdown - this has a function which allows to pull the data between the 3 dashes
+    // and turn them into separate variables. In our case - name, description, and price
+    // we also get the content
+    const { data, content } = matter(fileContent);
+    // console.log(data)
+    
+    // use the filename "basketball-hoop.md" and change it to "basketball-hoop"
+    // const slug = filename.replace('.md', '');
+    const slug = `/products/${filename.replace('.md', '')}`;
+    const product = {
+      ...data,
+      slug
+    };
+    // console.log(product)
+
+    // (3) return name, slug
+    // domain.com/products/basketball-hoop. We cannot have space between "basketball" and "hoop". So, we need to add a "-"
+    // in between and that's what we call a slug
+    
+    // return data;
+    return product;
+  });
+
+  // console.log(products);
+  
+
+  return {
+    props: {
+      products
+    }
+  }
 }
+
+export default HomePage
