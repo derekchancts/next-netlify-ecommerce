@@ -2,7 +2,10 @@ const fs = require("fs");
 const matter = require('gray-matter');
 const stripe = require('stripe')(process.env.STRIPE_PRIVATE_KEY);
 
+const products = require('./products.json');
 
+
+/*
 const getProducts = () => {
   const directory = `${process.cwd()}/content`;
   const filenames = fs.readdirSync(directory);
@@ -26,6 +29,7 @@ const getProducts = () => {
 
   return products;
 };
+*/
 
 
 exports.handler = async (event, context) => {
@@ -34,7 +38,7 @@ exports.handler = async (event, context) => {
   const { newCart } = JSON.parse(event.body);  // event.body is a string (using Stringify). So, we need to change it to an object
   // console.log(newCart)
 
-  const products = getProducts();
+  // const products = getProducts();  // we get the products from products.json file that we created 
   // console.log(products);
 
   const cartWithProducts = newCart.map(({ id, qty }) => {
