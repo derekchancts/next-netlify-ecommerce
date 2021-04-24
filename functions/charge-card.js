@@ -1,5 +1,6 @@
 const fs = require("fs");
 const matter = require('gray-matter');
+const stripe = require('stripe')(process.env.STRIPE_PRIVATE_KEY);
 
 
 const getProducts = () => {
@@ -28,7 +29,7 @@ const getProducts = () => {
 
 
 exports.handler = async (event, context) => {
-  console.log(event.body);
+  // console.log(event.body);
   // const { cart } =  event.body; 
   const { newCart } = JSON.parse(event.body);  // event.body is a string (using Stringify). So, we need to change it to an object
   // console.log(newCart)
@@ -45,21 +46,45 @@ exports.handler = async (event, context) => {
   });
   // console.log(cartWithProducts);
 
-  let total = 0;
+  // let total = 0;
   // cartWithProducts.map(product => {
   //   return total = total + (product.price * product.qty);
   // })
-  cartWithProducts.map(product => total += (product.price * product.qty) )
+  // cartWithProducts.map(product => total += (product.price * product.qty) )
   // console.log(total);
 
 
-  // talking to Stripe
-  
- 
-  // charging the card
+  // TALKING TO STRIPE
+  // lineItems will be an array with all the products from the cart, formated in the below structure
+  const lineItems = cartWithProducts.map(product => ({ 
+    price_data: {
+      currency: 'usd',
+      product_data: {
+        name: product.name
+      },
+      unit_amount: product.price,
+    },
+    quantity: product.qty,
+  }));
 
+
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ['card'],
+    line_items: lineItems,
+    mode: "payment",
+    success_url: `${process.env.URL}/success`,
+    cancel_url: `${process.env.URL}/cancelled`,
+  })
+  // if running on localhost, will get port 8888. If in Production, will be assigned the host's URL
+  // success_url: `${event.headers.host}/success`,
+  // cancel_url: `${event.headers.host}/cancelled`,
+
+ 
+  // CHARGING THE CARD
   return {
     statusCode: 200,
-    body: "I have charged that card",
+    body: JSON.stringify({
+      id: session.id,
+    }),
   };
 };

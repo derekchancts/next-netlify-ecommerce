@@ -2,6 +2,7 @@ import styled from 'styled-components';
 import { Page, Title, Item, UL, Total, Button } from '../components/styled/Page';
 import useCart from '../hooks/useCart';
 import axios from 'axios';
+import { loadStripe } from '@stripe/stripe-js';
 
 
 // const Title = styled.h2`
@@ -38,7 +39,6 @@ const Checkout = () => {
   const processPayment = async () => {
     const url = '/.netlify/functions/charge-card';
 
-
     // const newCart = cart.map(product => ({
     //   id: product.id,
     //   qty: product.qty
@@ -49,8 +49,12 @@ const Checkout = () => {
       qty
     }));
 
+
+    const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY);
     // const { data } = await axios.post(url, { cart });
     const { data } = await axios.post(url, { newCart });
+    await stripe.redirectToCheckout({ sessionId: data.id });
+
   };
 
 
